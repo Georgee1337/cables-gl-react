@@ -6,16 +6,19 @@ interface CablesPatchProps {
   patchOptions?: CablesPatchOptions;
 }
 
-const CablesPatch: React.FC<CablesPatchProps> = (props) => {
-  const canvasId = props.canvasId || 'glcanvas';
-  const patchDir = props.patchDir;
-  const patchOptions = useRef<CablesPatchOptions>({
+const CablesPatch: React.FC<CablesPatchProps> = ({
+  canvasId = 'glcanvas',
+  patchDir = '/patch/',
+  patchOptions = {},
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mergedPatchOptions = useRef<CablesPatchOptions>({
     prefixAssetPath: patchDir,
     jsPath: patchDir + '/js/',
     glCanvasId: canvasId,
     glCanvasResizeToWindow: true,
     canvas: { alpha: true, premultipliedAlpha: true },
-    ...props.patchOptions,
+    ...patchOptions,
   });
 
   useEffect(() => {
@@ -25,28 +28,38 @@ const CablesPatch: React.FC<CablesPatchProps> = (props) => {
     script.onload = initPatch;
     document.body.appendChild(script);
 
+    window.addEventListener('resize', updateCanvasSize);
+
     return () => {
       document.body.removeChild(script);
+      window.removeEventListener('resize', updateCanvasSize);
     };
   }, []);
 
   const initPatch = () => {
-    const options = patchOptions.current;
+    const options = mergedPatchOptions.current;
     if (!options.patch) options.patch = CABLES.exportedPatch;
-    if (!options.onPatchLoaded) options.onPatchLoaded = patchInitialized;
-    if (!options.onFinishedLoading) options.onFinishedLoading = patchFinishedLoading;
+    if (!options.onPatchLoaded) options.onPatchLoaded = () => console.log(patchDir + ' initialized');
+    if (!options.onFinishedLoading) options.onFinishedLoading = () => console.log(patchDir + ' finished loading');
     CABLES.patch = new CABLES.Patch(options);
+    updateCanvasSize();
   };
 
-  const patchInitialized = (patch: any) => {
-    console.log(patchDir + ' initialized');
+  const updateCanvasSize = () => {
+    if (canvasRef.current) {
+      canvasRef.current.width = window.innerWidth;
+      canvasRef.current.height = window.innerHeight;
+    }
   };
 
-  const patchFinishedLoading = (patch: any) => {
-    console.log(patchDir + ' finished loading');
-  };
-
-  return <canvas id={canvasId} ></canvas>;
+  return (
+    <canvas
+      ref={canvasRef}
+      id={canvasId}
+      tabIndex={1}
+      className="full-screen-canvas"
+    ></canvas>
+  );
 };
 
 export default CablesPatch;
